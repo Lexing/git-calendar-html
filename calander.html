@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Commit Calendar</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2d3748;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .file-input {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .file-input input[type="file"] {
+            display: none;
+        }
+        .file-input label {
+            display: inline-block;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.3s ease;
+        }
+        .file-input label:hover {
+            transform: translateY(-2px);
+        }
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            min-width: 140px;
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            display: block;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        .calendar-container {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .month {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(102, 126, 234, 0.1);
+        }
+        .month-title {
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2d3748;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            margin-bottom: 5px;
+        }
+        .weekday {
+            text-align: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #718096;
+            padding: 8px;
+        }
+        .days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+        .day {
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .day.empty {
+            color: #cbd5e0;
+        }
+        .day.no-commits {
+            background: #f7fafc;
+            color: #a0aec0;
+            border: 1px solid #e2e8f0;
+        }
+        .day.has-commits {
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        .day.level-1 {
+            background: linear-gradient(135deg, #c6f6d5, #9ae6b4);
+        }
+        .day.level-2 {
+            background: linear-gradient(135deg, #9ae6b4, #68d391);
+        }
+        .day.level-3 {
+            background: linear-gradient(135deg, #68d391, #48bb78);
+        }
+        .day.level-4 {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+        }
+        .day.level-5 {
+            background: linear-gradient(135deg, #38a169, #2f855a);
+        }
+        .day:hover {
+            transform: scale(1.1);
+            z-index: 10;
+        }
+        .tooltip {
+            position: absolute;
+            background: #2d3748;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        .tooltip.show {
+            opacity: 1;
+        }
+        .legend {
+            margin-top: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .legend-text {
+            font-size: 0.9rem;
+            color: #4a5568;
+            font-weight: 500;
+        }
+        .legend-scale {
+            display: flex;
+            gap: 3px;
+            align-items: center;
+        }
+        .legend-box {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            border: 1px solid #e2e8f0;
+        }
+        .legend-box.level-0 { background: #f7fafc; }
+        .legend-box.level-1 { background: linear-gradient(135deg, #c6f6d5, #9ae6b4); }
+        .legend-box.level-2 { background: linear-gradient(135deg, #9ae6b4, #68d391); }
+        .legend-box.level-3 { background: linear-gradient(135deg, #68d391, #48bb78); }
+        .legend-box.level-4 { background: linear-gradient(135deg, #48bb78, #38a169); }
+        .legend-box.level-5 { background: linear-gradient(135deg, #38a169, #2f855a); }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .calendar-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .stats {
+                gap: 15px;
+            }
+            .stat-card {
+                min-width: 120px;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗓️ Git Commit Calendar</h1>
+        
+        <div class="file-input">
+            <input type="file" id="git-log-file" accept=".txt">
+            <label for="git-log-file">📁 Upload Git Log File</label>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <span class="stat-number" id="total-commits">0</span>
+                <span class="stat-label">Total Commits</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="active-days">0</span>
+                <span class="stat-label">Active Days</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="max-day">0</span>
+                <span class="stat-label">Max Commits/Day</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="avg-commits">0</span>
+                <span class="stat-label">Avg Commits/Day</span>
+            </div>
+        </div>
+        
+        <div class="calendar-container" id="calendar-container">
+        </div>
+        
+        <div class="legend">
+            <span class="legend-text">Less</span>
+            <div class="legend-scale">
+                <div class="legend-box level-0"></div>
+                <div class="legend-box level-1"></div>
+                <div class="legend-box level-2"></div>
+                <div class="legend-box level-3"></div>
+                <div class="legend-box level-4"></div>
+                <div class="legend-box level-5"></div>
+            </div>
+            <span class="legend-text">More</span>
+        </div>
+    </div>
+    
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        let commitData = {};
+        
+        // Parse git log line: "592edc2 2025-07-20 16:23:29 -0400 luohongchen1993 fix date"
+        function parseGitLogLine(line) {
+            const parts = line.trim().split(' ');
+            if (parts.length < 5) return null;
+            
+            const hash = parts[0];
+            const date = parts[1];
+            const time = parts[2];
+            const timezone = parts[3];
+            const author = parts[4];
+            const message = parts.slice(5).join(' ');
+            
+            return {
+                hash,
+                date,
+                time,
+                timezone,
+                author,
+                message,
+                dateObj: new Date(date + 'T' + time + timezone.replace(/(\d{2})(\d{2})$/, '$1:$2'))
+            };
+        }
+        
+        function processGitLog(content) {
+            const lines = content.split('\n').filter(line => line.trim());
+            commitData = {};
+            
+            lines.forEach(line => {
+                const commit = parseGitLogLine(line);
+                if (commit) {
+                    const dateStr = commit.dateObj.toISOString().split('T')[0];
+                    if (!commitData[dateStr]) {
+                        commitData[dateStr] = [];
+                    }
+                    commitData[dateStr].push(commit);
+                }
+            });
+            
+            generateCalendar();
+            updateStats();
+        }
+        
+        function getCommitLevel(count) {
+            if (count === 0) return 0;
+            if (count === 1) return 1;
+            if (count <= 3) return 2;
+            if (count <= 6) return 3;
+            if (count <= 10) return 4;
+            return 5;
+        }
+        
+        function generateCalendar() {
+            const container = document.getElementById('calendar-container');
+            container.innerHTML = '';
+            
+            const now = new Date();
+            const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            
+            const months = [];
+            for (let i = 0; i < 2; i++) {
+                const month = new Date(twoMonthsAgo.getFullYear(), twoMonthsAgo.getMonth() + i, 1);
+                months.push(month);
+            }
+            
+            months.forEach(month => {
+                const monthDiv = document.createElement('div');
+                monthDiv.className = 'month';
+                
+                const monthTitle = document.createElement('div');
+                monthTitle.className = 'month-title';
+                monthTitle.textContent = month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                monthDiv.appendChild(monthTitle);
+                
+                const weekdays = document.createElement('div');
+                weekdays.className = 'weekdays';
+                ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+                    const weekdayDiv = document.createElement('div');
+                    weekdayDiv.className = 'weekday';
+                    weekdayDiv.textContent = day;
+                    weekdays.appendChild(weekdayDiv);
+                });
+                monthDiv.appendChild(weekdays);
+                
+                const daysDiv = document.createElement('div');
+                daysDiv.className = 'days';
+                
+                const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
+                const lastDay = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+                const startDate = new Date(firstDay);
+                startDate.setDate(startDate.getDate() - firstDay.getDay());
+                
+                for (let i = 0; i < 42; i++) {
+                    const currentDate = new Date(startDate);
+                    currentDate.setDate(startDate.getDate() + i);
+                    
+                    const dayDiv = document.createElement('div');
+                    dayDiv.className = 'day';
+                    
+                    if (currentDate.getMonth() !== month.getMonth()) {
+                        dayDiv.classList.add('empty');
+                        dayDiv.textContent = currentDate.getDate();
+                    } else {
+                        const dateStr = currentDate.toISOString().split('T')[0];
+                        const commits = commitData[dateStr] || [];
+                        const commitCount = commits.length;
+                        const level = getCommitLevel(commitCount);
+                        
+                        dayDiv.textContent = currentDate.getDate();
+                        
+                        if (commitCount === 0) {
+                            dayDiv.classList.add('no-commits');
+                        } else {
+                            dayDiv.classList.add('has-commits', `level-${level}`);
+                        }
+                        
+                        dayDiv.addEventListener('mouseenter', (e) => showTooltip(e, currentDate, commits));
+                        dayDiv.addEventListener('mouseleave', hideTooltip);
+                    }
+                    
+                    daysDiv.appendChild(dayDiv);
+                }
+                
+                monthDiv.appendChild(daysDiv);
+                container.appendChild(monthDiv);
+            });
+        }
+        
+        function showTooltip(event, date, commits) {
+            const tooltip = document.getElementById('tooltip');
+            const commitCount = commits.length;
+            const dateStr = date.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric',
+                year: 'numeric'
+            });
+            
+            let tooltipText = `${dateStr}\n${commitCount} commit${commitCount !== 1 ? 's' : ''}`;
+            
+            if (commits.length > 0) {
+                tooltipText += '\n\nCommits:';
+                commits.slice(0, 5).forEach(commit => {
+                    tooltipText += `\n• ${commit.message.substring(0, 50)}${commit.message.length > 50 ? '...' : ''}`;
+                });
+                if (commits.length > 5) {
+                    tooltipText += `\n• ... and ${commits.length - 5} more`;
+                }
+            }
+            
+            tooltip.innerHTML = tooltipText.replace(/\n/g, '<br>');
+            tooltip.style.left = event.pageX + 10 + 'px';
+            tooltip.style.top = event.pageY - 10 + 'px';
+            tooltip.classList.add('show');
+        }
+        
+        function hideTooltip() {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.classList.remove('show');
+        }
+        
+        function updateStats() {
+            const totalCommits = Object.values(commitData).reduce((sum, commits) => sum + commits.length, 0);
+            const activeDays = Object.keys(commitData).filter(date => commitData[date].length > 0).length;
+            const maxCommitsPerDay = Math.max(...Object.values(commitData).map(commits => commits.length), 0);
+            const avgCommitsPerDay = activeDays > 0 ? (totalCommits / activeDays).toFixed(1) : 0;
+            
+            document.getElementById('total-commits').textContent = totalCommits;
+            document.getElementById('active-days').textContent = activeDays;
+            document.getElementById('max-day').textContent = maxCommitsPerDay;
+            document.getElementById('avg-commits').textContent = avgCommitsPerDay;
+        }
+        
+        // File upload handler
+        document.getElementById('git-log-file').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    processGitLog(e.target.result);
+                };
+                reader.readAsText(file);
+            }
+        });
+        
+        // Initialize empty calendar
+        generateCalendar();
+    </script>
+</body>
+</html>
